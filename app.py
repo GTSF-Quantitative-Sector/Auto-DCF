@@ -9,6 +9,7 @@ from flask import Flask, request
 import numpy as np
 import pandas as pd
 import json
+from datetime import datetime
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -21,8 +22,47 @@ def auto_dcf():
     Requires a json payload with all the variables included.
     :return: json dump of DCF performed.
     """
-    iterations = 10000
-    years = ['2020A', '2021B', '2022P', '2023P', '2024P', '2025P']
+
+    """
+    assuming payload looks like
+    {
+    "ticker": "TSLA",
+    "start_date": "20190101"
+    "num_years": 3,
+    "iterations": 1000
+    }
+    
+    """
+    #iterations = 10000
+    ticker = request.json["ticker"]
+    if type(ticker) != str:
+        #throw error
+        pass
+    start_date = request.json["start_date"]
+    try:
+        date_object = datetime.strptime(date_string, "%Y%m%d")
+    except ValueError:
+        print("date should be in the formate 'YYYYMMDD'")
+
+    if int(start_date[:4]) > 2022 or int(start_date[:4]) < 2018: #toedit
+        print("start year should be between 2018 and 2022")
+
+    num_years = request.json["num_years"]
+    if num_years <= 0 or num_years > 10: #tochange
+        # throw error
+        print("number of years should be between 1 and 10")
+        pass
+
+    iterations = request.json["iterations"]
+    if iterations <= 0 or iterations >= 20000:  #tochange
+        #throw error
+        print("number of iterations should be between 1 and 20000")
+        pass
+
+
+
+    pass_into_bloomberg = [ticker, start_date]
+
     sales_growth = 0.1
     depr_percent = 0.032
     capex_percent = depr_percent
@@ -36,8 +76,20 @@ def auto_dcf():
     ebitda_margin_dist = np.random.normal(loc=ebitda_margin, scale=0.02, size=iterations)
     nwc_percent_dist = np.random.normal(loc=nwc_percent, scale=0.01, size=iterations)
 
+    years = ['2020A', '2021B', '2022P', '2023P', '2024P', '2025P']
+
+    #creating the years array, which will be used to create a pd series
+    """
+    years = []
+    for i in range(start_year, 2022):
+        years.append(str(i))
+    for i in range(0, num_years):
+        years.append(str(i + 2022) + "P")
+
     sales = pd.Series(index=years)
-    sales['2020A'] = 31.0
+    sales['2020A'] = 31.0 #needs to be changed
+    """
+
 
     results = run_mcs(0, iterations, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, depr_percent,
                       capex_percent, tax_rate, cost_of_capital)
@@ -57,6 +109,7 @@ def auto_dcf():
         pool.close()
     '''
     return json.dumps(results)
+
 
 
 def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, depr_percent, capex_percent,
