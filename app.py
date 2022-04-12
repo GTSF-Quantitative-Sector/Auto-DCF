@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import json
 from datetime import datetime
+import BloombergDataGrab
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -62,6 +63,8 @@ def auto_dcf():
 
 
     pass_into_bloomberg = [ticker, start_date]
+    
+    WACC, Revenue, COGS, GP, EBITDA, DandA, ETR, ITX, EBIT, AR, Inv, AP, NWC, CapEx, NumShares, Cash, ExitMultiple = BloombergDataGrab.dataGrab(pass_into_bloomberg[0], pass_into_bloomberg[1])
 
     sales_growth = 0.1
     depr_percent = 0.032
