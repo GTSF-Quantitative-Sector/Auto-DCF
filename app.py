@@ -27,7 +27,7 @@ def auto_dcf():
     """
     assuming payload looks like
     {
-    "ticker": "TSLA",
+    "ticker": "TSLA US Equity",
     "start_date": "20190101"
     "num_years": 3,
     "iterations": 1000
@@ -62,20 +62,14 @@ def auto_dcf():
 
     pass_into_bloomberg = [ticker, start_date]
     
-    WACC, Revenue, COGS, GP, EBITDA, DandA, ETR, ITX, EBIT, AR, Inv, AP, NWC, CapEx, NumShares, Cash, ExitMultiple = BloombergDataGrab.dataGrab(pass_into_bloomberg[0], pass_into_bloomberg[1])
+    WACC, Revenue, COGS, GP, EBITDA, DandA, ETR, ITX, EBIT, AR, Inv, AP, NWC, CapEx, NumShares, Cash, ExitMultiple = BloombergDataGrab.dataGrab(ticker, start_date)
 
     sales_growth = 0.1
-    depr_percent = 0.032
-    capex_percent = depr_percent
-    ebitda_margin = 0.14
-    tax_rate = 0.25
-    nwc_percent = 0.24
-    cost_of_capital = 0.12
 
     # Create probability distributions
     sales_growth_dist = np.random.normal(loc=sales_growth, scale=0.01, size=iterations)
-    ebitda_margin_dist = np.random.normal(loc=ebitda_margin, scale=0.02, size=iterations)
-    nwc_percent_dist = np.random.normal(loc=nwc_percent, scale=0.01, size=iterations)
+    ebitda_dist = np.random.normal(loc=EBITDA, scale=0.02, size=iterations)
+    nwc_dist = np.random.normal(loc=NWC, scale=0.01, size=iterations)
 
     # creating the years array, which will be used to create a pd series
     years = []
@@ -83,14 +77,13 @@ def auto_dcf():
         years.append(str(datetime.today().year + i))
 
     sales = pd.Series(index=years)
-    sales['2020A'] = 31.0 #needs to be changed
-    """
+    sales['2020A'] = Revenue.iloc[-1] #needs to be changed to the current years sales
 
    #Start from the most recent data (Jonathan)
     sales[0] = 31.0  # needs to be changed
 
-    results = run_mcs(0, iterations, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, depr_percent,
-                      capex_percent, tax_rate, cost_of_capital)
+    results = run_mcs(0, iterations, sales, sales_growth_dist, ebitda_dist, nwc_dist, DandA,
+                      CapEx, ETR, COGS, EBIT, WACC)
 
     '''
     print("Number of processors: ", mp.cpu_count())
@@ -109,8 +102,8 @@ def auto_dcf():
     return json.dumps(results)
 
 
-def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, depr_percent, capex_percent,
-            tax_rate, cost_of_capital):
+def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, DandA, CapEx,
+            ETR, COGS, EBIT, WACC):
     """
     Runs a Monte-Carlo Simulation using the given parameters for DCF.
     :param start: starting index of series
@@ -129,20 +122,19 @@ def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percen
     for i in range(start, end):
         for year in range(1, len(sales)):
             sales[year] = sales[year - 1] * (1 + sales_growth_dist[0])
-        ebitda = sales * ebitda_margin_dist[i]
-        depreciation = (sales * depr_percent)
-        ebit = ebitda - depreciation
-        nwc = sales * nwc_percent_dist[i]
+        ebitda = sales * ebitda_dist[i]
+        depreciation = (sales * DandA)
+        ebit = EBIT
+        nwc = nwc_dist[i]
         change_in_nwc = nwc.shift(1) - nwc
-        capex = -(sales * capex_percent)
         tax_payment = -ebit * tax_rate
         tax_payment = tax_payment.apply(lambda x: min(x, 0))
-        free_cash_flow = ebit + depreciation + tax_payment + capex + change_in_nwc
+        free_cash_flow = ebit + depreciation + tax_payment + CapEx + change_in_nwc
 
         # DCF valuation
         terminal_value = (free_cash_flow[-1] * 1.02) / (cost_of_capital - 0.02)
         free_cash_flow[-1] += terminal_value
-        discount_factors = [(1 / (1 + cost_of_capital)) ** i for i in range(1, len(sales))]
+        discount_factors = WACC
         dcf_value = sum(free_cash_flow[1:] * discount_factors)
         output_distribution.append(dcf_value)
     return output_distribution

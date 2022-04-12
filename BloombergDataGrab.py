@@ -11,6 +11,8 @@ def dataGrab(security, date):
 
     testCon.start()
     #This section will grab all the values needed from Bloomberg in order to make the DCF and is labeled the same way taught in mentorship
+    print(security)
+    print(date)
 
     WACC = testCon.bdh(security, 'VM011', date, date) #WACC
     Revenue = testCon.bdh(security, 'IS010', str((int(date)-30000)), date) #Revenue
@@ -37,7 +39,7 @@ def dataGrab(security, date):
     
     
 
-security = input("Enter the Security (Ticker i.e. Tesla = TSLA US Equity): ") #The security you want to get
-date = input("Enter the date (YYYYMMDD): ") #The date you want to value the security at
+#security = input("Enter the Security (Ticker i.e. Tesla = TSLA US Equity): ") #The security you want to get
+#date = input("Enter the date (YYYYMMDD): ") #The date you want to value the security at
 
-dataGrab(security, date)
+#print(dataGrab("TSLA US Equity", "20220412"))
