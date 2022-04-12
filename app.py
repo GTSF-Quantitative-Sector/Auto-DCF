@@ -90,7 +90,7 @@ def auto_dcf():
     sales['2020A'] = 31.0 #needs to be changed
     """
 
-
+   #Start from the most recent data (Jonathan)
     results = run_mcs(0, iterations, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, depr_percent,
                       capex_percent, tax_rate, cost_of_capital)
 
