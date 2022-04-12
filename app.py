@@ -16,7 +16,7 @@ app = Flask(__name__)
 app.config["DEBUG"] = True
 
 
-@app.route('/api/v1/auto_dcf', methods=['POST', 'GET'])
+@app.route('/api/v1/auto_dcf', methods=['POST'])
 def auto_dcf():
     """
     Endpoint for performing the Monte-Carlo Automated Discounted Cash Flow.
@@ -34,33 +34,31 @@ def auto_dcf():
     }
     
     """
-    #iterations = 10000
+
     ticker = request.json["ticker"]
     if type(ticker) != str:
-        #throw error
+        # throw error
         pass
     start_date = request.json["start_date"]
     try:
-        date_object = datetime.strptime(date_string, "%Y%m%d")
+        date_object = datetime.strptime(start_date, "%Y%m%d")
     except ValueError:
         print("date should be in the formate 'YYYYMMDD'")
 
-    if int(start_date[:4]) > 2022 or int(start_date[:4]) < 2018: #toedit
+    if int(start_date[:4]) > 2022 or int(start_date[:4]) < 2018:  # toedit
         print("start year should be between 2018 and 2022")
 
     num_years = request.json["num_years"]
-    if num_years <= 0 or num_years > 10: #tochange
+    if num_years <= 0 or num_years > 10:  # tochange
         # throw error
         print("number of years should be between 1 and 10")
         pass
 
     iterations = request.json["iterations"]
-    if iterations <= 0 or iterations >= 20000:  #tochange
-        #throw error
+    if iterations <= 0 or iterations >= 20000:  # tochange
+        # throw error
         print("number of iterations should be between 1 and 20000")
         pass
-
-
 
     pass_into_bloomberg = [ticker, start_date]
     
@@ -79,21 +77,18 @@ def auto_dcf():
     ebitda_margin_dist = np.random.normal(loc=ebitda_margin, scale=0.02, size=iterations)
     nwc_percent_dist = np.random.normal(loc=nwc_percent, scale=0.01, size=iterations)
 
-    years = ['2020A', '2021B', '2022P', '2023P', '2024P', '2025P']
-
-    #creating the years array, which will be used to create a pd series
-    """
+    # creating the years array, which will be used to create a pd series
     years = []
-    for i in range(start_year, 2022):
-        years.append(str(i))
     for i in range(0, num_years):
-        years.append(str(i + 2022) + "P")
+        years.append(str(datetime.today().year + i))
 
     sales = pd.Series(index=years)
     sales['2020A'] = 31.0 #needs to be changed
     """
 
    #Start from the most recent data (Jonathan)
+    sales[0] = 31.0  # needs to be changed
+
     results = run_mcs(0, iterations, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, depr_percent,
                       capex_percent, tax_rate, cost_of_capital)
 
@@ -114,7 +109,6 @@ def auto_dcf():
     return json.dumps(results)
 
 
-
 def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, depr_percent, capex_percent,
             tax_rate, cost_of_capital):
     """
@@ -133,7 +127,7 @@ def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percen
     """
     output_distribution = []
     for i in range(start, end):
-        for year in range(1, len(year)):
+        for year in range(1, len(sales)):
             sales[year] = sales[year - 1] * (1 + sales_growth_dist[0])
         ebitda = sales * ebitda_margin_dist[i]
         depreciation = (sales * depr_percent)
@@ -148,7 +142,7 @@ def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percen
         # DCF valuation
         terminal_value = (free_cash_flow[-1] * 1.02) / (cost_of_capital - 0.02)
         free_cash_flow[-1] += terminal_value
-        discount_factors = [(1 / (1 + cost_of_capital)) ** i for i in range(1, len(year))]
+        discount_factors = [(1 / (1 + cost_of_capital)) ** i for i in range(1, len(sales))]
         dcf_value = sum(free_cash_flow[1:] * discount_factors)
         output_distribution.append(dcf_value)
     return output_distribution
