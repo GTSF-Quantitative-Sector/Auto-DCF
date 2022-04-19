@@ -42,4 +42,5 @@ def dataGrab(security, date):
 #security = input('Enter the Security (Ticker i.e. Tesla = TSLA US Equity): ') #The security you want to get
 #date = input('Enter the date (YYYYMMDD): ') #The date you want to value the security at
 
-#print(dataGrab('AAPL US Equity', '20220412'))
+if __name__ == '__main__':
+    print(dataGrab('AAPL US Equity', '20220412'))
