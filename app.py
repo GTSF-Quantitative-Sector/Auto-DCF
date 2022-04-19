@@ -73,11 +73,11 @@ def auto_dcf():
     sales = pd.Series(index=years, dtype=float)
     sales[str(ref_date.year)] = data["SALES_REV_TURN"]  # needs to be changed to the current years sales
 
-    results = run_mcs(start=0, end=iterations, num_shares=data["BS_SH_OUT"], sales=sales,
+    estimate, results = run_mcs(start=0, end=iterations, num_shares=data["BS_SH_OUT"], sales=sales,
                       capex_percent=(data["CAPEX_ABSOLUTE_VALUE"] / data["SALES_REV_TURN"]),
                       depr_percent=(data["CAPEX_ABSOLUTE_VALUE"] / data["SALES_REV_TURN"]), wacc=data["WACC"],
                       tax_rate=data["EFF_TAX_RATE"], sales_growth_dist=sales_growth_dist,
-                      ebitda_margin_dist=ebitda_margin_dist, nwc_percent_dist=nwc_percent_dist)
+                      ebitda_margin_dist=ebitda_margin_dist, nwc_percent_dist=nwc_percent_dist, data = data)
 
     '''
     print("Number of processors: ", mp.cpu_count())
@@ -93,21 +93,22 @@ def auto_dcf():
     
         pool.close()
     '''
-    return json.dumps(results)
+    return json.dumps([estimate, results])
 
 
 def get_ticker_data(security, start_date, end_date):
     fields = ["BS_SH_OUT", "SALES_REV_TURN", "IS_COGS_TO_FE_AND_PP_AND_G", "EBITDA", "CF_DEPR_AMORT",
               "CAPEX_ABSOLUTE_VALUE", "BS_INVENTORIES", "BS_ACCTS_REC_EXCL_NOTES_REC", "BS_ACCT_PAYABLE",
-              "WORKING_CAPITAL", "CURRENT_MARKET_CAP_SHARE_CLASS", "BEST_EV", "COUNTRY_RISK_RFR",
+              "WORKING_CAPITAL", "CURRENT_MARKET_CAP_SHARE_CLASS", "COUNTRY_RISK_RFR",
               "COUNTRY_RISK_PREMIUM", "SALES_3YR_AVG_GROWTH", "EFF_TAX_RATE", "WACC", "EBITDA_TO_REVENUE",
               "EV_EBITDA_ADJUSTED", "BETA_ADJ_OVERRIDABLE"]
     query = blp.BlpQuery().start()
     data = query.bdh(["{} US Equity".format(security)], fields, start_date=start_date, end_date=end_date).fillna(
         method="ffill").iloc[-1]
+    #print(data.to_string())
     for x in ["BS_SH_OUT", "SALES_REV_TURN", "IS_COGS_TO_FE_AND_PP_AND_G", "EBITDA", "CF_DEPR_AMORT",
               "CAPEX_ABSOLUTE_VALUE", "BS_INVENTORIES", "BS_ACCTS_REC_EXCL_NOTES_REC", "BS_ACCT_PAYABLE",
-              "WORKING_CAPITAL", "CURRENT_MARKET_CAP_SHARE_CLASS", "BEST_EV"]:
+              "WORKING_CAPITAL", "CURRENT_MARKET_CAP_SHARE_CLASS"]:
         data[x] *= 1000000
     for y in ["COUNTRY_RISK_RFR", "COUNTRY_RISK_PREMIUM", "SALES_3YR_AVG_GROWTH",
               "EFF_TAX_RATE", "WACC", "EBITDA_TO_REVENUE"]:
@@ -116,7 +117,7 @@ def get_ticker_data(security, start_date, end_date):
 
 
 def run_mcs(start, end, num_shares, sales, capex_percent, depr_percent, wacc, tax_rate, sales_growth_dist,
-            ebitda_margin_dist, nwc_percent_dist):
+            ebitda_margin_dist, nwc_percent_dist, data):
     """
     Runs a Monte-Carlo Simulation using the given parameters for DCF.
     :param num_shares:
@@ -153,8 +154,9 @@ def run_mcs(start, end, num_shares, sales, capex_percent, depr_percent, wacc, ta
         discount_factors = [1 / (1 + wacc ** i) for i in range(1, len(sales))]
         dcf_value = free_cash_flow[1:] * discount_factors
         # print(dcf_value)
-        output_distribution.append(sum(dcf_value))
-    return output_distribution
+        output_distribution.append((sum(dcf_value)/num_shares) * data["EV_EBITDA_ADJUSTED"])
+    estimate_value = sum(output_distribution)/len(output_distribution)
+    return estimate_value, output_distribution
 
 
 if __name__ == '__main__':
