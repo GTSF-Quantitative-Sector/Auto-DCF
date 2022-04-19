@@ -28,7 +28,7 @@ def auto_dcf():
     assuming payload looks like
     {
     "ticker": "TSLA US Equity",
-    "start_date": "20190101"
+    "start_date": "20190101",
     "num_years": 3,
     "iterations": 1000
     }
@@ -62,12 +62,13 @@ def auto_dcf():
 
     pass_into_bloomberg = [ticker, start_date]
     
-    WACC, Revenue, COGS, GP, EBITDA, DandA, ETR, ITX, EBIT, AR, Inv, AP, NWC, CapEx, NumShares, Cash, ExitMultiple = BloombergDataGrab.dataGrab(ticker, start_date)
+    WACC, Revenue, COGS, GP, EBITDA, DandA, ETR, ITX, EBIT, Inv, AP, NWC, CapEx, NumShares, Cash, ExitMultiple, MarketCap, TotalDepreciation, SalesGrowth = BloombergDataGrab.dataGrab(ticker, start_date)
 
-    sales_growth = 0.1
+    
+    EBITDA = EBITDA / Revenue #From here we are using the EBITDA Margin
 
     # Create probability distributions
-    sales_growth_dist = np.random.normal(loc=sales_growth, scale=0.01, size=iterations)
+    sales_growth_dist = np.random.normal(loc=(SalesGrowth/100), scale=0.01, size=iterations)
     ebitda_dist = np.random.normal(loc=EBITDA, scale=0.02, size=iterations)
     nwc_dist = np.random.normal(loc=NWC, scale=0.01, size=iterations)
 
@@ -77,13 +78,16 @@ def auto_dcf():
         years.append(str(datetime.today().year + i))
 
     sales = pd.Series(index=years)
-    sales['2020A'] = Revenue.iloc[-1] #needs to be changed to the current years sales
+    sales['2020A'] = Revenue #needs to be changed to the current years sales
 
-   #Start from the most recent data (Jonathan)
-    sales[0] = 31.0  # needs to be changed
+   #Start from the most recent data (Jon)
+    sales[0] = Revenue  # needs to be changed
+
+    depr_percent = (DandA/TotalDepreciation)*100
+    ETR = ETR / 100
 
     results = run_mcs(0, iterations, sales, sales_growth_dist, ebitda_dist, nwc_dist, DandA,
-                      CapEx, ETR, COGS, EBIT, WACC)
+                      CapEx, ETR, COGS, EBIT, WACC, depr_percent, NumShares)
 
     '''
     print("Number of processors: ", mp.cpu_count())
@@ -102,8 +106,8 @@ def auto_dcf():
     return json.dumps(results)
 
 
-def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percent_dist, DandA, CapEx,
-            ETR, COGS, EBIT, WACC):
+def run_mcs(start, end, sales, sales_growth_dist, ebitda_dist, nwc_dist, DandA, CapEx,
+            ETR, COGS, EBIT, WACC, depr_percent, NumShares):
     """
     Runs a Monte-Carlo Simulation using the given parameters for DCF.
     :param start: starting index of series
@@ -119,26 +123,52 @@ def run_mcs(start, end, sales, sales_growth_dist, ebitda_margin_dist, nwc_percen
     :return: list of each iteration valuation
     """
     output_distribution = []
-    for i in range(start, end):
+    for i in range(start, end-1):
+ 
         for year in range(1, len(sales)):
             sales[year] = sales[year - 1] * (1 + sales_growth_dist[0])
         ebitda = sales * ebitda_dist[i]
-        depreciation = (sales * DandA)
-        ebit = EBIT
+        depreciation = (sales * depr_percent)
+        ebit = ebitda - depreciation
         nwc = nwc_dist[i]
-        change_in_nwc = nwc.shift(1) - nwc
-        tax_payment = -ebit * tax_rate
+        #print(nwc)
+        #print(nwc_dist[i+1])
+        change_in_nwc = nwc_dist[i+1]-nwc
+        capex = -(sales * depr_percent)
+        tax_payment = -ebit * ETR
         tax_payment = tax_payment.apply(lambda x: min(x, 0))
-        free_cash_flow = ebit + depreciation + tax_payment + CapEx + change_in_nwc
+        free_cash_flow = ebit + depreciation + tax_payment + capex + change_in_nwc
 
         # DCF valuation
-        terminal_value = (free_cash_flow[-1] * 1.02) / (cost_of_capital - 0.02)
+        terminal_value = (free_cash_flow[-1] * 1.02) / (COGS - 0.02)
         free_cash_flow[-1] += terminal_value
         discount_factors = WACC
         dcf_value = sum(free_cash_flow[1:] * discount_factors)
         output_distribution.append(dcf_value)
     return output_distribution
+    '''
+    output_distribution = []
+    for i in range(start, end):
+        for year in range(1, len(sales)):
+            sales[year] = sales[year - 1] * (1 + sales_growth_dist[0])
+        ebitda = sales * ebitda_margin_dist[i]
+        depreciation = (sales * depr_percent)
+        ebit = ebitda - depreciation
+        nwc = sales * nwc_percent_dist[i]
+        change_in_nwc = nwc.shift(1) - nwc
+        capex = -(sales * capex_percent)
+        tax_payment = -ebit * tax_rate
+        tax_payment = tax_payment.apply(lambda x: min(x, 0))
+        free_cash_flow = ebit + depreciation + tax_payment + capex + change_in_nwc
 
+        # DCF valuation
+        terminal_value = (free_cash_flow[-1] * 1.02) / (cost_of_capital - 0.02)
+        free_cash_flow[-1] += terminal_value
+        discount_factors = [(1 / (1 + cost_of_capital)) ** i for i in range(1, len(sales))]
+        dcf_value = sum(free_cash_flow[1:] * discount_factors)
+        output_distribution.append(dcf_value)
+    return output_distribution
+    '''
 
 if __name__ == '__main__':
     app.run()

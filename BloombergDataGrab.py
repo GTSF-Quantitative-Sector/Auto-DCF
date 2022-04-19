@@ -11,35 +11,35 @@ def dataGrab(security, date):
 
     testCon.start()
     #This section will grab all the values needed from Bloomberg in order to make the DCF and is labeled the same way taught in mentorship
-    print(security)
-    print(date)
-
-    WACC = testCon.bdh(security, 'VM011', date, date) #WACC
-    Revenue = testCon.bdh(security, 'IS010', str((int(date)-30000)), date) #Revenue
-    COGS = testCon.bdh(security, 'IS021', str((int(date)-30000)), date) #COGS
-    GP = testCon.bdh(security, 'RR861', str((int(date)-30000)), date) #Gross Profit
-    EBITDA = testCon.bdh(security, 'RR009', str((int(date)-30000)), date) #EBITDA
-    DandA = testCon.bdh(security, 'A0122', str((int(date)-30000)), date) #Depreciation and Amortization
-    ETR = testCon.bdh(security, 'RR037', date, date) #Effective Tax Rate
-    ITX = testCon.bdh(security, 'IS038', str((int(date)-30000)), date) #Income Tax Expense
-    EBIT = testCon.bdh(security, 'RR002', str((int(date)-30000)), date) #EBIT
-    AR = testCon.bdh(security, 'BS296', str((int(date)-30000)), date) #Accounts Receivable
-    Inv = testCon.bdh(security, 'BS013', str((int(date)-30000)), date) #Inventory
-    AP = testCon.bdh(security, 'BS036', str((int(date)-30000)), date) #Accounts Payable
-    NWC = testCon.bdh(security, 'F0918', str((int(date)-30000)), date) #Net Working Capital
-    CapEx = testCon.bdh(security, 'RR014', str((int(date)-30000)), date) #Capex
+    WACC = testCon.bdh(security, 'VM011', str(int(date)-10000), date).iloc[-1, 0] #WACC
+    Revenue = testCon.bdh(security, 'IS010', str(int(date)-10000), date).iloc[-1, 0] #Revenue in millions
+    COGS = testCon.bdh(security, 'IS021', str(int(date)-10000), date).iloc[-1, 0] #COGS in millions
+    GP = testCon.bdh(security, 'RR861', str(int(date)-10000), date).iloc[-1, 0] #Gross Profit in millions
+    EBITDA = testCon.bdh(security, 'RR009', str(int(date)-10000), date).iloc[-1, 0] #EBITDA in millions
+    DandA = testCon.bdh(security, 'A0122', str(int(date)-10000), date).iloc[-1, 0] #Depreciation and Amortization in millions
+    ETR = testCon.bdh(security, 'RR037', str(int(date)-10000), date).iloc[-1, 0] #Effective Tax Rate in percent
+    ITX = testCon.bdh(security, 'IS038', str(int(date)-10000), date).iloc[-1, 0] #Income Tax Expense in millions
+    EBIT = testCon.bdh(security, 'RR002', str(int(date)-10000), date).iloc[-1, 0] #EBIT in millions
+    #AR = testCon.bdh(security, 'BS296', str(int(date)-10000), date) #Accounts Receivable 
+    Inv = testCon.bdh(security, 'BS013', str(int(date)-10000), date).iloc[-1, 0] #Inventory in millions
+    AP = testCon.bdh(security, 'BS036', str(int(date)-10000), date).iloc[-1, 0] #Accounts Payable in millioins
+    NWC = testCon.bdh(security, 'F0918', str(int(date)-10000), date).iloc[-1, 0] #Net Working Capital in millions
+    CapEx = testCon.bdh(security, 'RR014', str(int(date)-10000), date).iloc[-1, 0] #CapEx in millions
+    TotalDepreciation = testCon.bdh(security, 'BS031', str(int(date)-10000), date).iloc[-1, 0]
+    SalesGrowth = testCon.bdh(security, 'RR003', str(int(date)-10000), date).iloc[-1, 0]
     
     #These are different fields that are also needed to calculate the DCF
-    NumShares = testCon.bdh(security, 'DS124', date, date) #Shares Outstandint
-    Cash = testCon.bdh(security, 'BS010', date, date) #Cash and Cash Equivalents
-    ExitMultiple = testCon.bdh(security, 'RR957', date, date) #EV/EBITDA
+    NumShares = testCon.bdh(security, 'DS124', str(int(date)-10000), date).iloc[-1, 0] #Shares Outstanding 
+    Cash = testCon.bdh(security, 'BS010', str(int(date)-10000), date).iloc[-1, 0] #Cash and Cash Equivalents
+    ExitMultiple = testCon.bdh(security, 'RR957', str(int(date)-10000), date).iloc[-1, 0] #EV/EBITDA
+    MarketCap = testCon.bdh(security, 'RR902', str(int(date) - 10000), date).iloc[-1, 0] #Market Cap
     
-    return WACC, Revenue, COGS, GP, EBITDA, DandA, ETR, ITX, EBIT, AR, Inv, AP, NWC, CapEx, NumShares, Cash, ExitMultiple
+    return WACC, Revenue, COGS, GP, EBITDA, DandA, ETR, ITX, EBIT, Inv, AP, NWC, CapEx, NumShares, Cash, ExitMultiple, MarketCap, TotalDepreciation, SalesGrowth
     
     
     
 
-#security = input("Enter the Security (Ticker i.e. Tesla = TSLA US Equity): ") #The security you want to get
-#date = input("Enter the date (YYYYMMDD): ") #The date you want to value the security at
+#security = input('Enter the Security (Ticker i.e. Tesla = TSLA US Equity): ') #The security you want to get
+#date = input('Enter the date (YYYYMMDD): ') #The date you want to value the security at
 
-#print(dataGrab("TSLA US Equity", "20220412"))
+#print(dataGrab('AAPL US Equity', '20220412'))
